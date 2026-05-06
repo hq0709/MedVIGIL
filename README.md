@@ -21,6 +21,7 @@ scripts/
   bench_blur_sweep_run.py              run one API model across all sigma levels
   bench_blur_sweep_run_huatuo.py       same blur sweep for HuatuoGPT-Vision-7B
   run_blur_sweep_one_model.sh          driver shell script for the blur sweep
+  bench_visual_token_ablation.py       progressive ROI-mask ablation runner (App. I)
   bench_make_image_perturbations.py    PIL utility: ROI-mask, ROI-only, lr_flip image variants
   bench_judge_open.py                  LLM-judge scorer for the open-ended (free-form) variant
   bench_aggregate.py                   aggregate per-model JSONL results into the metric CSVs
@@ -43,6 +44,7 @@ analysis/
   visual_decay/                        blur ablation aggregation + figures
     aggregate.py                       case-level blur-sweep aggregation
     figure_visual_decay.py             paper-side blur-sweep figures
+  figure_visual_token_ablation.py      visual-token (progressive ROI mask) figure (App. I)
   analyze_results.py                   legacy aggregate analyser
   enhanced_analysis.py                 legacy headline analyser
   generate_figures.py                  legacy figure runner
