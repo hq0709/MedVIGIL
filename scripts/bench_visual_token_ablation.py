@@ -39,7 +39,81 @@ from api_models import _load_dotenv  # noqa: E402
 _load_dotenv()
 sys.path.insert(0, str(ROOT / "scripts"))
 import bench_run_baseline as runner  # noqa: E402
-import bench_token_ablation as tok_runner  # noqa: E402
+
+
+# --- inline helpers (previously in bench_token_ablation.py) ---
+async def call_one_with_temp(client, model: str, image_path, prompt: str,
+                              temperature: float, max_tokens: int):
+    """Cross-vendor wrapper that passes temperature where the SDK supports it,
+    falling back to default when the model rejects custom temperature
+    (e.g., GPT-5.5 reasoning models, newer Claude versions).
+    """
+    provider = runner.detect_provider(model)
+    if provider == "openai":
+        msgs = []
+        if image_path and image_path.exists():
+            b64, media = runner.encode_image(image_path)
+            msgs.append({"type": "image_url",
+                         "image_url": {"url": f"data:{media};base64,{b64}"}})
+        msgs.append({"type": "text", "text": prompt})
+        kwargs = dict(model=model, max_completion_tokens=max_tokens,
+                       messages=[{"role": "user", "content": msgs}])
+        try:
+            r = await client.chat.completions.create(temperature=temperature, **kwargs)
+        except Exception as e:
+            if "temperature" in str(e):
+                r = await client.chat.completions.create(**kwargs)
+            else:
+                raise
+        return r.choices[0].message.content or "", {}
+    if provider == "anthropic":
+        if image_path and image_path.exists():
+            b64, media = runner.encode_image(image_path)
+            content = [
+                {"type": "image", "source": {"type": "base64",
+                                              "media_type": media, "data": b64}},
+                {"type": "text", "text": prompt},
+            ]
+        else:
+            content = prompt
+        try:
+            r = await client.messages.create(
+                model=model, max_tokens=max_tokens,
+                temperature=temperature,
+                messages=[{"role": "user", "content": content}],
+            )
+        except Exception as e:
+            if "temperature" in str(e):
+                r = await client.messages.create(
+                    model=model, max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": content}],
+                )
+            else:
+                raise
+        return ("".join(b.text for b in r.content if hasattr(b, "text")), {})
+    if provider == "google":
+        from google.genai import types as genai_types
+        from PIL import Image as PILImage
+        contents = []
+        if image_path and image_path.exists():
+            contents.append(PILImage.open(image_path).convert("RGB"))
+        contents.append(prompt)
+        cfg = genai_types.GenerateContentConfig(
+            temperature=temperature, max_output_tokens=max_tokens,
+        )
+        r = await client.aio.models.generate_content(
+            model=model, contents=contents, config=cfg,
+        )
+        return (r.text or "", {})
+    raise ValueError(f"unsupported provider: {provider}")
+
+
+def mode_and_share(letters):
+    bag = collections.Counter(l for l in letters if l)
+    if not bag:
+        return "", 0.0
+    letter, n = bag.most_common(1)[0]
+    return letter, 100.0 * n / len(letters)
 
 
 def make_variants(case_id: str, image_path: Path, roi_bbox_norm: list[float],
@@ -91,10 +165,13 @@ def _parse_bbox(s: str) -> list[float] | None:
     return None
 
 
-def select_pilot_cases(n_per_tier: int = 4) -> list[dict]:
-    """Pick the same 13 stratified cases the text-token pilot used,
-    but require a usable ROI bbox.
+def select_pilot_cases(n_per_tier: int = 16) -> list[dict]:
+    """Visual-token pilot needs only a usable ROI bbox; the lexicon
+    filter from the (deleted) text-token pilot is not required here.
+    Sample up to `n_per_tier` cases per CRT tier.
     """
+    import random
+    rng = random.Random(20260506)
     manifest = list(csv.DictReader((BENCH / "manifest.csv").open()))
     grounding = {r["case_id"]: r for r in csv.DictReader((BENCH / "grounding.csv").open())}
     by_tier = collections.defaultdict(list)
@@ -107,14 +184,12 @@ def select_pilot_cases(n_per_tier: int = 4) -> list[dict]:
         bbox = _parse_bbox(gr.get("roi_bbox_norm", ""))
         if not bbox:
             continue
-        cats = tok_runner.categorize_tokens(row["question"])
-        kinds = set(cats.values())
-        if {"laterality", "anatomy", "finding"} & kinds and len(kinds) >= 2:
-            row["_bbox"] = bbox
-            by_tier[row["risk_tier"]].append(row)
+        row["_bbox"] = bbox
+        by_tier[row["risk_tier"]].append(row)
     picked = []
     for t in ("L1", "L2", "L3", "L4", "L5"):
-        bucket = by_tier.get(t, [])
+        bucket = list(by_tier.get(t, []))
+        rng.shuffle(bucket)
         picked.extend(bucket[:n_per_tier])
     return picked
 
@@ -134,7 +209,7 @@ async def query_self_consistency(client, model, image_path, prompt, n=5):
     letters = []
     for _ in range(n):
         try:
-            raw, _ = await tok_runner.call_one_with_temp(client, model, image_path, prompt,
+            raw, _ = await call_one_with_temp(client, model, image_path, prompt,
                                                          temperature=0.7, max_tokens=max_tok)
             letters.append(runner.parse_letter(raw))
         except Exception as e:
@@ -184,7 +259,7 @@ async def main_async(args):
         async with sem:
             letters = await query_self_consistency(clients[model_id], model_id,
                                                     image_path, prompt, n=args.samples)
-            letter, conf = tok_runner.mode_and_share(letters)
+            letter, conf = mode_and_share(letters)
             return {"model": dm, "step": step, "case_id": case["case_id"],
                     "letter": letter, "confidence": conf,
                     "all_letters": "".join(letters)}
@@ -253,7 +328,7 @@ async def main_async(args):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--cases-per-tier", type=int, default=4)
+    ap.add_argument("--cases-per-tier", type=int, default=16)
     ap.add_argument("--samples", type=int, default=5)
     ap.add_argument("--concurrency", type=int, default=8)
     ap.add_argument("--limit", type=int, default=None)

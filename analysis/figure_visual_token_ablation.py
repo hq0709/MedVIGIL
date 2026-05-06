@@ -63,14 +63,32 @@ MASK_COLOR = "#d62728"
 ROI_BOX    = "#1f6dc4"
 
 
+def _wilson_ci(p_pct: float, n: int, z: float = 1.96):
+    """Wilson 95% CI for a proportion. p_pct in 0..100, n integer.
+    Returns (lo_pct, hi_pct)."""
+    if n <= 0:
+        return p_pct, p_pct
+    p = p_pct / 100.0
+    denom = 1.0 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = (z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5)) / denom
+    return (centre - half) * 100.0, (centre + half) * 100.0
+
+
 def _load_rows():
     rows = list(csv.DictReader(CSV_PATH.open()))
     by_model = defaultdict(list)
     for r in rows:
+        n = int(r.get("n_cases", 0) or 0)
+        ref = float(r.get("refusal_pct", 0.0))
+        sw = float(r.get("switch_from_s0_pct", 0.0))
+        ref_lo, ref_hi = _wilson_ci(ref, n)
+        sw_lo,  sw_hi  = _wilson_ci(sw,  n)
         by_model[r["model"]].append({
             "step": int(r["step"]),
-            "refusal": float(r.get("refusal_pct", 0.0)),
-            "switch": float(r.get("switch_from_s0_pct", 0.0)),
+            "n": n,
+            "refusal": ref, "refusal_lo": ref_lo, "refusal_hi": ref_hi,
+            "switch":  sw,  "switch_lo":  sw_lo,  "switch_hi":  sw_hi,
             "stability": float(r.get("letter_stability_pct", 100.0)),
         })
     for m in by_model:
@@ -148,8 +166,12 @@ def _render_curves(ax_ref, ax_sw, by_model):
     # top of each other when two models pick the same letter at the same step.
     model_xoff = {m: dx for m, dx in zip(by_model.keys(), [-0.12, 0.0, 0.12])}
     for model, recs in by_model.items():
-        ys = [r["refusal"] for r in recs]
+        ys   = [r["refusal"]    for r in recs]
+        ylo  = [r["refusal_lo"] for r in recs]
+        yhi  = [r["refusal_hi"] for r in recs]
         color = MODEL_DISPLAY.get(model, "0.3")
+        ax_ref.fill_between(xs, ylo, yhi, color=color, alpha=0.10, zorder=1,
+                              linewidth=0)
         ax_ref.plot(xs, ys, color=color, linewidth=2.2, alpha=0.95, zorder=2)
         ax_ref.scatter(xs, ys, s=70, color=color,
                         edgecolor="white", linewidth=1.2, zorder=3, label=model)
@@ -170,10 +192,14 @@ def _render_curves(ax_ref, ax_sw, by_model):
     for lbl in ax_ref.get_yticklabels():
         lbl.set_fontfamily(ANNOT_FONT["family"])
 
-    # --- bottom: switch rate from step 0 ---
+    # --- bottom: switch rate from step 0, with 95% Wilson CI band ---
     for model, recs in by_model.items():
-        ys = [r["switch"] for r in recs]
+        ys   = [r["switch"]    for r in recs]
+        ylo  = [r["switch_lo"] for r in recs]
+        yhi  = [r["switch_hi"] for r in recs]
         color = MODEL_DISPLAY.get(model, "0.3")
+        ax_sw.fill_between(xs, ylo, yhi, color=color, alpha=0.10, zorder=1,
+                             linewidth=0)
         ax_sw.plot(xs, ys, color=color, linewidth=2.0,
                     linestyle="--", alpha=0.95, zorder=2)
         ax_sw.scatter(xs, ys, s=55, color=color,

@@ -1,0 +1,13 @@
+model,step,step_label,n_cases,refusal_pct,switch_from_s0_pct,letter_stability_pct,note
+Claude Opus 4.7,0,full,80,3.8,0.0,100.0,
+Claude Opus 4.7,1,roi_33%_masked,80,8.8,16.2,83.8,
+Claude Opus 4.7,2,roi_67%_masked,80,23.8,38.8,61.2,
+Claude Opus 4.7,3,roi_100%_masked,80,57.5,62.5,37.5,
+GPT-5.5,0,full,80,2.5,0.0,100.0,
+GPT-5.5,1,roi_33%_masked,80,8.8,17.5,82.5,
+GPT-5.5,2,roi_67%_masked,80,25.0,35.0,65.0,
+GPT-5.5,3,roi_100%_masked,80,58.8,70.0,30.0,
+Gemini 3 Flash,0,full,80,1.2,0.0,100.0,
+Gemini 3 Flash,1,roi_33%_masked,80,1.2,11.2,88.8,
+Gemini 3 Flash,2,roi_67%_masked,80,11.2,30.0,70.0,
+Gemini 3 Flash,3,roi_100%_masked,80,42.5,58.8,41.2,
