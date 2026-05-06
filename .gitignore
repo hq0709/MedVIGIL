@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Model weights / large artefacts (never commit)
+checkpoints/
+*.bin
+*.safetensors
+*.pth
+*.pt
+*.onnx
+*.ckpt
+
+# Logs / runs / outputs
+logs/
+runs/
+wandb/
+outputs/
+
+# Source images (released separately on HF Datasets)
+data/medvlm_bench_v1/images/
+data/medvlm_bench_v1/images_perturbed/
+
+# Local credentials
+.env
+*.pem
+*.key
+.netrc
