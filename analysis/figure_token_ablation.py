@@ -1,4 +1,17 @@
-"""Token-ablation figure: progressive removal of key tokens vs. model confidence."""
+"""Token-ablation figure: progressive removal of key tokens vs. confidence.
+
+Layout (matches the user's spec: token viz on the left, one line plot on the
+right):
+  Left  panel — the example question (MVB-0031) rendered four times with
+                progressively more clinically informative tokens struck
+                through (laterality -> anatomy -> finding).
+  Right panel — a single confidence trajectory plot per model. Marker SIZE
+                at each step is proportional to the letter-stability rate
+                (fraction of cases where the step-k modal letter equals
+                the step-0 letter). A model that stays high-confidence
+                with large markers is keeping the same answer despite the
+                clinical content being removed --- the failure mode.
+"""
 from __future__ import annotations
 
 import csv
@@ -39,12 +52,13 @@ def _load_rows():
     return by_model
 
 
-def _render_text_panel(ax):
-    """Render four progressive question variants stacked vertically.
+def _render_text_panel(ax, fig):
+    """Per-token rendering with explicit strikethrough line for removed tokens.
 
-    Uses one ax.text() call per row so character spacing matches the
-    rendered glyph metrics; struck-through tokens are rendered with the
-    Unicode combining-strikethrough character and a muted colour.
+    Each token is drawn separately so we can colour-code (light gray for
+    removed, dark for kept) and overlay a horizontal red strikethrough
+    line on the removed tokens. This is visually unambiguous regardless
+    of font / DPI, unlike Unicode combining-strikethrough characters.
     """
     ax.axis("off")
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
@@ -59,74 +73,107 @@ def _render_text_panel(ax):
         ([5, 6],      "Step 2",  "− anatomy"),
         ([5, 6, 7],   "Step 3",  "skeleton"),
     ]
-
-    # Compose each row as a single string.
-    # We render the line with rich-text-style coloring by drawing
-    # struck-through tokens in a separate ax.text call, layered on top
-    # of the same baseline. This avoids per-glyph layout entirely.
+    KEPT = "#1f2937"
+    REMOVED = "#a3a8b0"
+    STRIKE_COLOUR = "#B82C2C"
 
     n_steps = len(strike_steps)
     margin_top = 0.96
     row_h = 0.92 / n_steps
+
+    fig.canvas.draw()
+    inv = ax.transAxes.inverted()
+    renderer = fig.canvas.get_renderer()
 
     for i, (idxs, label, sub) in enumerate(strike_steps):
         y_label = margin_top - i * row_h - 0.02
         y_text  = y_label - 0.085
 
         ax.text(0.0,   y_label, label, fontsize=9, fontweight="bold",
-                color="#1f2937", transform=ax.transAxes)
+                color=KEPT, transform=ax.transAxes)
         ax.text(0.165, y_label, sub, fontsize=8.6, color="#6b7280",
                 style="italic", transform=ax.transAxes)
 
-        # Build a single-line rendering by inserting struck-through tokens
-        # at the right positions.
-        line_tokens = []
+        # Render each token separately and track its bbox in axes coords
+        x_cursor = 0.0
         for j, tok in enumerate(tokens):
-            line_tokens.append(strike(tok) if j in idxs else tok)
-        line = " ".join(line_tokens)
-        ax.text(0.0, y_text, line,
-                fontsize=10.4, color="#1f2937",
-                transform=ax.transAxes,
-                fontfamily="DejaVu Sans")
+            removed = j in idxs
+            colour = REMOVED if removed else KEPT
+            t = ax.text(x_cursor, y_text, tok,
+                        fontsize=10.6, color=colour,
+                        transform=ax.transAxes,
+                        fontfamily="DejaVu Sans")
+            # Measure the rendered glyph extent in axes coordinates.
+            bb = t.get_window_extent(renderer=renderer).transformed(inv)
+            # Overlay a strikethrough line on removed tokens.
+            if removed:
+                y_mid = (bb.y0 + bb.y1) / 2.0
+                ax.plot([bb.x0, bb.x1], [y_mid, y_mid],
+                        color=STRIKE_COLOUR, linewidth=1.8,
+                        solid_capstyle="round",
+                        transform=ax.transAxes, zorder=5)
+            x_cursor = bb.x1 + 0.012
 
         if i < n_steps - 1:
             ax.plot([0.0, 1.0], [y_text - 0.045, y_text - 0.045],
                     color="0.85", linewidth=0.6, transform=ax.transAxes)
 
 
-def _render_curves_panel(ax_conf, ax_stab, by_model):
-    for ax in (ax_conf, ax_stab):
-        for s in ax.spines.values():
-            s.set_color("0.35"); s.set_linewidth(0.9)
-        ax.tick_params(length=4, width=0.8, color="0.35", labelsize=8.5)
-        ax.grid(axis="y", alpha=0.18, linewidth=0.8)
+def _render_curve_panel(ax, by_model):
+    """Single line plot. y = confidence (%); marker size ∝ letter-stability."""
+    for s in ax.spines.values():
+        s.set_color("0.35"); s.set_linewidth(0.9)
+    ax.tick_params(length=4, width=0.8, color="0.35", labelsize=8.8)
+    ax.grid(axis="y", alpha=0.18, linewidth=0.8)
 
     step_labels = ["full", "− laterality", "− anatomy", "skeleton"]
     xs = [0, 1, 2, 3]
 
-    for model, recs in by_model.items():
-        ys = [r["conf"] for r in recs]
-        ax_conf.plot(xs, ys, marker="o", linewidth=1.7, markersize=4.5,
-                     color=PROVIDER_COLOR.get(model, "0.3"), label=model)
-    ax_conf.set_ylabel("Mean answer\nconfidence  (%)", fontsize=9)
-    ax_conf.set_ylim(45, 95)
-    ax_conf.set_yticks([50, 60, 70, 80, 90])
-    ax_conf.set_xticks(xs); ax_conf.set_xticklabels([""] * len(xs))
-    ax_conf.set_title("Confidence  ·  letter-stability rate vs. token removal",
-                      loc="left", fontsize=10.5, fontweight="bold",
-                      color="#1f2937", pad=4)
-    ax_conf.legend(loc="lower left", fontsize=8.0, frameon=False, ncol=2,
-                   handlelength=1.2, columnspacing=0.8)
+    # Marker size scaling: stability 0-100% -> marker area 18-200 (sqrt of size)
+    def msize(stab):
+        return max(20, 20 + 1.8 * stab)  # area in points^2
 
     for model, recs in by_model.items():
-        ys = [r["stability"] for r in recs]
-        ax_stab.plot(xs, ys, marker="s", linewidth=1.5, markersize=4.0,
-                     color=PROVIDER_COLOR.get(model, "0.3"), linestyle="--")
-    ax_stab.set_ylabel("Letter-stability\nrate vs. step 0  (%)", fontsize=9)
-    ax_stab.set_ylim(15, 105)
-    ax_stab.set_yticks([25, 50, 75, 100])
-    ax_stab.set_xticks(xs); ax_stab.set_xticklabels(step_labels, fontsize=8.5)
-    ax_stab.set_xlabel("Token removal step", fontsize=9, labelpad=4)
+        ys = [r["conf"] for r in recs]
+        stabs = [r["stability"] for r in recs]
+        color = PROVIDER_COLOR.get(model, "0.3")
+        ax.plot(xs, ys, color=color, linewidth=1.6, alpha=0.85, zorder=2)
+        # scatter on top with size encoding
+        ax.scatter(xs, ys, s=[msize(s) for s in stabs],
+                   color=color, edgecolor="white", linewidth=0.9,
+                   zorder=3, label=model)
+
+    ax.set_ylabel("Mean answer confidence  (%)", fontsize=9.5)
+    ax.set_xlabel("Token-removal step", fontsize=9.5, labelpad=2)
+    ax.set_xticks(xs); ax.set_xticklabels(step_labels, fontsize=9)
+    ax.set_ylim(50, 105)
+    ax.set_yticks([60, 70, 80, 90, 100])
+    ax.set_xlim(-0.25, 3.4)
+
+    ax.set_title("Confidence trajectory  ·  marker size $\\propto$ letter-stability rate",
+                 loc="left", fontsize=10.5, fontweight="bold",
+                 color="#1f2937", pad=6)
+
+    # Model legend below the plot, left side
+    leg1 = ax.legend(loc="upper left", fontsize=8.6, frameon=False,
+                     bbox_to_anchor=(-0.02, -0.30), ncol=3,
+                     handlelength=1.3, columnspacing=1.0, handletextpad=0.5)
+    ax.add_artist(leg1)
+
+    # Stability-size legend below the plot, right side
+    from matplotlib.lines import Line2D
+    legend_handles = [
+        Line2D([0],[0], marker='o', linestyle='None', markerfacecolor='0.55',
+               markeredgecolor='white', markersize=v**0.5,
+               label=f"{int(s)}%")
+        for s, v in [(25, msize(25)), (50, msize(50)),
+                     (75, msize(75)), (100, msize(100))]
+    ]
+    ax.legend(handles=legend_handles, loc="upper right",
+              title="letter-stability:", fontsize=7.8, title_fontsize=8.0,
+              frameon=False, handlelength=0.5, ncol=4,
+              columnspacing=0.5, handletextpad=0.25,
+              bbox_to_anchor=(1.02, -0.30))
 
 
 def main() -> None:
@@ -134,15 +181,14 @@ def main() -> None:
     by_model = _load_rows()
 
     fig = plt.figure(figsize=(11.0, 4.0))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1.25, 1.0], height_ratios=[1.0, 0.85],
-                          wspace=0.32, hspace=0.05,
-                          left=0.03, right=0.985, top=0.93, bottom=0.12)
-    ax_text = fig.add_subplot(gs[:, 0])
-    ax_conf = fig.add_subplot(gs[0, 1])
-    ax_stab = fig.add_subplot(gs[1, 1])
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.25, 1.0],
+                          wspace=0.22,
+                          left=0.03, right=0.985, top=0.93, bottom=0.27)
+    ax_text = fig.add_subplot(gs[0, 0])
+    ax_curve = fig.add_subplot(gs[0, 1])
 
-    _render_text_panel(ax_text)
-    _render_curves_panel(ax_conf, ax_stab, by_model)
+    _render_text_panel(ax_text, fig)
+    _render_curve_panel(ax_curve, by_model)
 
     for ext in ("pdf", "png", "svg"):
         fig.savefig(f"{OUT_BASE}.{ext}", dpi=200, bbox_inches="tight")
