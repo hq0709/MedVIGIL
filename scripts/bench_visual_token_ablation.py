@@ -129,11 +129,13 @@ def load_probes_lookup() -> dict:
 
 
 async def query_self_consistency(client, model, image_path, prompt, n=5):
+    is_reasoning = "5.5" in model.lower() or model in {"o1", "o1-mini", "o1-preview"}
+    max_tok = 4000 if is_reasoning else 96
     letters = []
     for _ in range(n):
         try:
             raw, _ = await tok_runner.call_one_with_temp(client, model, image_path, prompt,
-                                                         temperature=0.7, max_tokens=8)
+                                                         temperature=0.7, max_tokens=max_tok)
             letters.append(runner.parse_letter(raw))
         except Exception as e:
             print(f"   call err: {e}", flush=True)
@@ -166,14 +168,14 @@ async def main_async(args):
     from google import genai as gen_ai
 
     clients = {
-        "gpt-4o":                       AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"]),
-        "claude-opus-4-7":              AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"]),
-        "gemini-3.1-flash-lite-preview":gen_ai.Client(api_key=os.environ["GOOGLE_API_KEY"]),
+        "gpt-5.5":                AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"]),
+        "claude-opus-4-7":        AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"]),
+        "gemini-3-flash-preview": gen_ai.Client(api_key=os.environ["GOOGLE_API_KEY"]),
     }
     display = {
-        "gpt-4o":                        "GPT-4o",
-        "claude-opus-4-7":               "Claude Opus 4.7",
-        "gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite",
+        "gpt-5.5":                "GPT-5.5",
+        "claude-opus-4-7":        "Claude Opus 4.7",
+        "gemini-3-flash-preview": "Gemini 3 Flash",
     }
 
     sem = asyncio.Semaphore(args.concurrency)

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import csv
 import json
-import math
 from collections import defaultdict
 from pathlib import Path
 
@@ -17,7 +16,6 @@ from matplotlib.patches import Rectangle
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Match the typography used elsewhere in the paper figures.
 FONT_DIR = ROOT / "paper" / "MedVIGIL_NeurIPS2026" / "fonts"
 if not FONT_DIR.exists():
     for cand in (ROOT / "paper").glob("*"):
@@ -54,10 +52,13 @@ STEP_LABELS = ["full",
                "100% ROI masked"]
 
 MODEL_DISPLAY = {
-    "GPT-4o":               "#10a37f",
-    "Claude Opus 4.7":      "#cc785c",
-    "Gemini 3.1 Flash-Lite":"#615ced",
+    "GPT-5.5":         "#10a37f",
+    "Claude Opus 4.7": "#cc785c",
+    "Gemini 3 Flash":  "#615ced",
 }
+# DejaVu Serif for the inline letter annotations: visually distinct
+# from the Comic Sans body labels and available without external fonts.
+LETTER_FONT = {"family": "DejaVu Serif"}
 MASK_COLOR = "#d62728"
 ROI_BOX    = "#1f6dc4"
 
@@ -68,8 +69,9 @@ def _load_rows():
     for r in rows:
         by_model[r["model"]].append({
             "step": int(r["step"]),
-            "conf": float(r["mean_confidence_pct"]),
-            "stability": float(r["letter_stability_pct"]),
+            "refusal": float(r.get("refusal_pct", 0.0)),
+            "switch": float(r.get("switch_from_s0_pct", 0.0)),
+            "stability": float(r.get("letter_stability_pct", 100.0)),
         })
     for m in by_model:
         by_model[m].sort(key=lambda r: r["step"])
@@ -116,8 +118,7 @@ def _draw_thumbnail(ax, k, bbox_norm):
         x0, y0 = x0n * W, y0n * H
         roi_w, roi_h = (x1n - x0n) * W, (y1n - y0n) * H
         ax.add_patch(Rectangle((x0, y0), roi_w, roi_h, fill=False,
-                                edgecolor=ROI_BOX, linewidth=1.6,
-                                linestyle="-"))
+                                edgecolor=ROI_BOX, linewidth=1.6))
         if k > 0:
             frac = k / 3.0
             mask_h = frac * roi_h
@@ -128,82 +129,82 @@ def _draw_thumbnail(ax, k, bbox_norm):
                  loc="left", fontsize=9.6, color="#1f2937", pad=4)
 
 
-def _style_curve_axis(ax):
+def _style_axis(ax):
     for s in ax.spines.values():
         s.set_color("0.35"); s.set_linewidth(0.9)
     ax.tick_params(axis="both", which="major",
                     length=4.5, width=0.8, color="0.35",
                     direction="out", pad=3)
-
-
-def _render_curve_panel(ax, by_model):
-    _style_curve_axis(ax)
     ax.grid(axis="y", color="0.85", linewidth=0.6, alpha=0.6)
 
+
+def _render_curves(ax_ref, ax_sw, by_model):
+    _style_axis(ax_ref); _style_axis(ax_sw)
     xs = [0, 1, 2, 3]
-
-    def msize(stab):
-        # Marker AREA (s argument of scatter) — gives a wide, visible range.
-        return max(45, 45 + 4.0 * stab)
-
     example_letters = _load_example_letters()
 
+    # --- top: refusal rate (% of cases that pick option E) ---
+    # Stagger letter-annotation x offsets per model so labels do not stack on
+    # top of each other when two models pick the same letter at the same step.
+    model_xoff = {m: dx for m, dx in zip(by_model.keys(), [-0.12, 0.0, 0.12])}
     for model, recs in by_model.items():
-        ys = [r["conf"] for r in recs]
-        stabs = [r["stability"] for r in recs]
+        ys = [r["refusal"] for r in recs]
         color = MODEL_DISPLAY.get(model, "0.3")
-        ax.plot(xs, ys, color=color, linewidth=2.2, alpha=0.95, zorder=2)
-        ax.scatter(xs, ys, s=[msize(s) for s in stabs],
-                   color=color, edgecolor="white", linewidth=1.2,
-                   zorder=3, label=model)
-        # Annotate each marker with the example case's modal letter
-        for x_i, y_i, st in zip(xs, ys, stabs):
+        ax_ref.plot(xs, ys, color=color, linewidth=2.2, alpha=0.95, zorder=2)
+        ax_ref.scatter(xs, ys, s=70, color=color,
+                        edgecolor="white", linewidth=1.2, zorder=3, label=model)
+        dx = model_xoff.get(model, 0.0)
+        for x_i, y_i in zip(xs, ys):
             letter, _ = example_letters.get((model, x_i), ("", 0.0))
             if letter:
-                offset = 14 + 0.06 * st
-                ax.annotate(letter, xy=(x_i, y_i),
-                            xytext=(0, offset), textcoords="offset points",
-                            ha="center", va="bottom",
-                            fontsize=10, fontweight="bold",
-                            color=color, zorder=4, **ANNOT_FONT)
+                ax_ref.annotate(letter, xy=(x_i + dx, y_i),
+                                xytext=(0, 9), textcoords="offset points",
+                                ha="center", va="bottom",
+                                fontsize=11.5, fontweight="bold",
+                                color=color, zorder=4, **LETTER_FONT)
 
-    ax.set_ylabel("Mean answer confidence  (%)", fontsize=10.5, **ANNOT_FONT)
-    ax.set_xlabel("ROI-mask step (example: MVB-0031)", fontsize=10.5, labelpad=4, **ANNOT_FONT)
-    ax.set_xticks(xs)
-    ax.set_xticklabels([f"(a) full", "(b) 33%", "(c) 67%", "(d) 100%"],
-                        fontsize=9.6)
-    for lbl in ax.get_yticklabels():
-        lbl.set_fontfamily(ANNOT_FONT["family"])
-    for lbl in ax.get_xticklabels():
+    ax_ref.set_ylabel("Refusal rate\n(% picking option E)", fontsize=10.2, **ANNOT_FONT)
+    ax_ref.set_ylim(-3, 75); ax_ref.set_yticks([0, 25, 50, 75])
+    ax_ref.set_xlim(-0.3, 3.4)
+    ax_ref.set_xticks(xs); ax_ref.set_xticklabels([""] * len(xs))
+    for lbl in ax_ref.get_yticklabels():
         lbl.set_fontfamily(ANNOT_FONT["family"])
 
-    ax.set_ylim(50, 112); ax.set_yticks([60, 70, 80, 90, 100])
-    ax.set_xlim(-0.3, 3.4)
+    # --- bottom: switch rate from step 0 ---
+    for model, recs in by_model.items():
+        ys = [r["switch"] for r in recs]
+        color = MODEL_DISPLAY.get(model, "0.3")
+        ax_sw.plot(xs, ys, color=color, linewidth=2.0,
+                    linestyle="--", alpha=0.95, zorder=2)
+        ax_sw.scatter(xs, ys, s=55, color=color,
+                        edgecolor="white", linewidth=1.0, zorder=3,
+                        marker="s")
 
-    # legends below the plot (one row each, well separated vertically)
-    model_handles = [Line2D([0],[0], marker='o', linestyle='-',
-                              color=MODEL_DISPLAY[m], markersize=10,
-                              markerfacecolor=MODEL_DISPLAY[m],
-                              markeredgecolor='white', markeredgewidth=1.2,
-                              label=m, linewidth=2.0)
-                      for m in by_model.keys()]
-    leg1 = ax.legend(handles=model_handles, loc="upper left",
-                     bbox_to_anchor=(0.0, -0.16), ncol=3, frameon=False,
-                     handlelength=1.6, handletextpad=0.5, columnspacing=1.4,
-                     fontsize=9.6)
-    ax.add_artist(leg1)
+    ax_sw.set_ylabel("Letter-switch rate\n(% changed vs. step 0)",
+                      fontsize=10.2, **ANNOT_FONT)
+    ax_sw.set_xlabel("ROI-mask step (letters above markers = "
+                      "modal letter on MVB-0031)",
+                      fontsize=10.0, labelpad=4, **ANNOT_FONT)
+    ax_sw.set_ylim(-3, 75); ax_sw.set_yticks([0, 25, 50, 75])
+    ax_sw.set_xlim(-0.3, 3.4)
+    ax_sw.set_xticks(xs)
+    ax_sw.set_xticklabels(["(a) full", "(b) 33%", "(c) 67%", "(d) 100%"],
+                            fontsize=9.6)
+    for lbl in ax_sw.get_xticklabels():
+        lbl.set_fontfamily(ANNOT_FONT["family"])
+    for lbl in ax_sw.get_yticklabels():
+        lbl.set_fontfamily(ANNOT_FONT["family"])
 
-    size_handles = [Line2D([0],[0], marker='o', linestyle='None',
-                              markerfacecolor='0.55', markeredgecolor='white',
-                              markeredgewidth=1.0, markersize=v**0.5,
-                              label=f"{int(s)}%")
-                     for s, v in [(25, msize(25)), (50, msize(50)),
-                                   (75, msize(75)), (100, msize(100))]]
-    ax.legend(handles=size_handles, loc="upper right",
-              bbox_to_anchor=(1.0, -0.16), ncol=4, frameon=False,
-              handlelength=0.7, handletextpad=0.4, columnspacing=0.7,
-              title="letter-stability rate", title_fontsize=8.8,
-              fontsize=8.6)
+    handles = [Line2D([0],[0], marker='o', linestyle='-',
+                       color=MODEL_DISPLAY[m], markersize=9,
+                       markerfacecolor=MODEL_DISPLAY[m],
+                       markeredgecolor='white', markeredgewidth=1.2,
+                       label=m, linewidth=2.0)
+                for m in by_model.keys()]
+    ax_sw.legend(handles=handles, loc="upper center",
+                  bbox_to_anchor=(0.5, -0.34), ncol=3, frameon=False,
+                  handlelength=1.6, handletextpad=0.5, columnspacing=1.6,
+                  fontsize=9.8)
 
 
 def main() -> None:
@@ -211,27 +212,21 @@ def main() -> None:
     by_model = _load_rows()
     bbox = _load_roi_bbox(EXAMPLE_CASE)
 
-    # Wider figure; left = 2x2 thumbnail grid; right = curve panel.
     fig = plt.figure(figsize=(11.6, 5.4))
     outer = fig.add_gridspec(1, 2, width_ratios=[0.95, 1.30],
                               wspace=0.18,
-                              left=0.045, right=0.99, top=0.94, bottom=0.18)
+                              left=0.045, right=0.99, top=0.97, bottom=0.20)
     left_gs = outer[0, 0].subgridspec(2, 2, wspace=0.10, hspace=0.20)
     img_axes = [[fig.add_subplot(left_gs[i, j]) for j in range(2)]
                   for i in range(2)]
-    ax_curve = fig.add_subplot(outer[0, 1])
+
+    right_gs = outer[0, 1].subgridspec(2, 1, height_ratios=[1.0, 1.0], hspace=0.12)
+    ax_ref = fig.add_subplot(right_gs[0, 0])
+    ax_sw  = fig.add_subplot(right_gs[1, 0])
 
     for k in range(4):
         _draw_thumbnail(img_axes[k // 2][k % 2], k, bbox)
-    _render_curve_panel(ax_curve, by_model)
-
-    fig.suptitle(f"Visual-token ablation on {EXAMPLE_CASE}  (blue = ROI;"
-                  " red = portion of ROI masked).  "
-                  "Right: pilot $n=13$ stratified cases, three API models, "
-                  "five self-consistency samples per cell. "
-                  "Bold letter above each marker = modal letter on the example case.",
-                  x=0.045, y=0.985, ha="left", fontsize=10.2,
-                  fontweight="bold", color="#1f2937")
+    _render_curves(ax_ref, ax_sw, by_model)
 
     for ext in ("pdf", "png", "svg"):
         fig.savefig(f"{OUT_BASE}.{ext}", dpi=200, bbox_inches="tight")

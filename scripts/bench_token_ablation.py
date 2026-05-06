@@ -162,12 +162,16 @@ async def call_one_with_temp(client, model: str, image_path, prompt: str,
             msgs.append({"type": "image_url",
                          "image_url": {"url": f"data:{media};base64,{b64}"}})
         msgs.append({"type": "text", "text": prompt})
-        r = await client.chat.completions.create(
-            model=model,
-            max_completion_tokens=max_tokens,
-            temperature=temperature,
-            messages=[{"role": "user", "content": msgs}],
-        )
+        # Reasoning models (gpt-5.5) reject custom temperature.
+        kwargs = dict(model=model, max_completion_tokens=max_tokens,
+                       messages=[{"role": "user", "content": msgs}])
+        try:
+            r = await client.chat.completions.create(temperature=temperature, **kwargs)
+        except Exception as e:
+            if "temperature" in str(e):
+                r = await client.chat.completions.create(**kwargs)
+            else:
+                raise
         return r.choices[0].message.content or "", {}
     if provider == "anthropic":
         if image_path and image_path.exists():
@@ -229,11 +233,16 @@ async def call_one_with_temp(client, model: str, image_path, prompt: str,
 
 async def query_self_consistency(client, model, image_path, prompt, n=5):
     """Return list of selected letters from n samples at T=0.7."""
+    # Reasoning models (gpt-5.5) need many more tokens because their
+    # response includes the reasoning trace; otherwise the chunk we get
+    # back can be empty even though a letter was internally selected.
+    is_reasoning = "5.5" in model.lower() or model in {"o1", "o1-mini", "o1-preview"}
+    max_tok = 4000 if is_reasoning else 96
     letters = []
     for _ in range(n):
         try:
             raw, _ = await call_one_with_temp(client, model, image_path, prompt,
-                                               temperature=0.7, max_tokens=8)
+                                               temperature=0.7, max_tokens=max_tok)
             letters.append(runner.parse_letter(raw))
         except Exception as e:
             print(f"   call err: {e}", flush=True)
