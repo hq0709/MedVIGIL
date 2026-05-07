@@ -1,4 +1,4 @@
-"""End-to-end integrity validator for medvlm_bench_v1.
+"""End-to-end integrity validator for medvigil_v1.
 
 Run anytime to get a full quality report on the dataset state. Does NOT
 modify anything; reports only.
@@ -16,7 +16,7 @@ Checks:
 
 Output:
   prints summary to stdout
-  writes data/medvlm_bench_v1/validation_report.md (machine-readable)
+  writes data/medvigil_v1/validation_report.md (machine-readable)
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 REPORT = BENCH / "validation_report.md"
 
 
@@ -57,7 +57,7 @@ class Report:
             self.ok += 1
 
     def print(self):
-        print(f"\n{'='*72}\nMedVLM-Bench v1 Validation Report\n{'='*72}")
+        print(f"\n{'='*72}\nMedVIGIL Validation Report\n{'='*72}")
         for name, status, detail in self.checks:
             mark = {"OK": "✓", "WARN": "!", "FAIL": "✗"}[status]
             print(f"  [{mark}] {name:<55} {status}")
@@ -67,7 +67,7 @@ class Report:
         print(f"\nSummary: {self.ok} ok / {self.warn} warn / {self.fail} fail")
 
     def write(self, path: Path):
-        lines = ["# MedVLM-Bench v1 Validation Report\n"]
+        lines = ["# MedVIGIL Validation Report\n"]
         lines.append(f"- ok: **{self.ok}**\n- warn: **{self.warn}**\n- fail: **{self.fail}**\n\n")
         for name, status, detail in self.checks:
             lines.append(f"## [{status}] {name}\n")

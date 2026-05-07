@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 BASELINES = RESULTS / "baselines"
 
 WEIGHTS = {"L1": 1, "L2": 2, "L3": 3, "L4": 5, "L5": 8}

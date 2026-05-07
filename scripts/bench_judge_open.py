@@ -64,7 +64,7 @@ from api_models import _load_dotenv  # noqa: E402
 
 _load_dotenv()
 
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 PROBES_OPEN = BENCH / "probes_open.csv"
 
 JUDGE_MODEL = "<MODEL>"

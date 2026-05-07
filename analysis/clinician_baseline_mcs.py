@@ -12,7 +12,7 @@ from pathlib import Path
 from collections import defaultdict
 
 ROOT = Path(__file__).resolve().parents[1]
-CSV_PATH = ROOT / "data/medvlm_bench_v1/clinician_baseline.csv"
+CSV_PATH = ROOT / "data/medvigil_v1/clinician_baseline.csv"
 
 WEIGHTS = {"L1": 1, "L2": 2, "L3": 3, "L4": 5, "L5": 8}
 TIERS = ("L1", "L2", "L3", "L4", "L5")

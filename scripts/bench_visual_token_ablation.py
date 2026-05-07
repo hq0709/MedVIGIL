@@ -11,8 +11,8 @@ For every (model, case, step) we run 5 self-consistency samples at
 temperature 0.7 and record the modal letter and modal-letter share
 (confidence proxy), then aggregate per (model, step) into a tidy CSV.
 
-Output: data/medvlm_bench_v1/visual_token_ablation.csv +
-data/medvlm_bench_v1/_visual_token_raw.jsonl + the per-case step
+Output: data/medvigil_v1/visual_token_ablation.csv +
+data/medvigil_v1/_visual_token_raw.jsonl + the per-case step
 images under images_visualtoken/.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 OUT_IMG_DIR = BENCH / "images_visualtoken"
 OUT_IMG_DIR.mkdir(exist_ok=True, parents=True)
 

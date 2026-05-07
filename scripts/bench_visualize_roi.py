@@ -6,7 +6,7 @@ For each case with a Layer B ROI bbox, render a 4-panel diagnostic image:
   panel 3: ROI-masked variant
   panel 4: ROI-only variant
 
-Saves to data/medvlm_bench_v1/qa_review/<case_id>.png so a doctor can
+Saves to data/medvigil_v1/qa_review/<case_id>.png so a doctor can
 flip through 30-50 of them in <30 minutes and accept/reject.
 
 Defaults: render the first 50 cases that have a non-trivial ROI.
@@ -26,7 +26,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 MANIFEST = BENCH / "manifest.csv"
 GROUNDING = BENCH / "grounding.csv"
 IMAGES = BENCH / "images"

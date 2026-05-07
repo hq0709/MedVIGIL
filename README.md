@@ -65,7 +65,7 @@ cd MedVIGIL && bash setup.sh
 ### 1. Pull the dataset from Hugging Face
 
 ```bash
-hf download --repo-type=dataset jhq0709/MedVIGIL --local-dir data/medvlm_bench_v1
+hf download --repo-type=dataset jhq0709/MedVIGIL --local-dir data/medvigil_v1
 ```
 
 ### 2. Score a new model
@@ -74,12 +74,12 @@ hf download --repo-type=dataset jhq0709/MedVIGIL --local-dir data/medvlm_bench_v
 # Any OpenAI-compatible vision API (GPT-5.x, Claude, Gemini, Qwen, Kimi, ...)
 python scripts/bench_run_baseline.py \
   --model gpt-4o \
-  --probes data/medvlm_bench_v1/probes_mcq.csv \
+  --probes data/medvigil_v1/probes_mcq.csv \
   --out results/baselines/gpt-4o__mcq.jsonl
 
 # Local open-weight medical VLMs
-python scripts/bench_run_huatuo.py    --probes data/medvlm_bench_v1/probes_mcq.csv
-python scripts/bench_run_llava_med.py --probes data/medvlm_bench_v1/probes_mcq.csv
+python scripts/bench_run_huatuo.py    --probes data/medvigil_v1/probes_mcq.csv
+python scripts/bench_run_llava_med.py --probes data/medvigil_v1/probes_mcq.csv
 ```
 
 ### 3. Aggregate + score

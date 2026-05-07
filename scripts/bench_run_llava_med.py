@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 PROBES_MCQ = BENCH / "probes_mcq.csv"
 PROBES_OPEN = BENCH / "probes_open.csv"
 RESULTS = ROOT / "results/baselines"

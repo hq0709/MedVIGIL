@@ -36,7 +36,7 @@ plt.rcParams["pdf.fonttype"] = 42
 plt.rcParams["ps.fonttype"] = 42
 ANNOT_FONT = {"family": "DejaVu Sans"}
 
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 CSV_PATH = BENCH / "visual_token_ablation.csv"
 RAW_PATH = BENCH / "_visual_token_raw.jsonl"
 IMG_DIR  = BENCH / "images_visualtoken"

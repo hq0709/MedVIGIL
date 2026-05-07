@@ -19,8 +19,8 @@ Skips cases whose Layer B output is missing or has empty ROI (those keep
 only their original; Layer C1 still applies).
 
 Output:
-  data/medvlm_bench_v1/images_perturbed/<basename>_<variant>.<ext>
-  data/medvlm_bench_v1/_image_probes.csv  (staging — joined into probes.csv later)
+  data/medvigil_v1/images_perturbed/<basename>_<variant>.<ext>
+  data/medvigil_v1/_image_probes.csv  (staging — joined into probes.csv later)
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 MANIFEST = BENCH / "manifest.csv"
 IMAGES = BENCH / "images"
 PERT = BENCH / "images_perturbed"

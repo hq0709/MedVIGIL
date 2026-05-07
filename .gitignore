@@ -36,8 +36,8 @@ wandb/
 outputs/
 
 # Source images (released separately on HF Datasets)
-data/medvlm_bench_v1/images/
-data/medvlm_bench_v1/images_perturbed/
+data/medvigil_v1/images/
+data/medvigil_v1/images_perturbed/
 
 # Local credentials
 .env

@@ -1,4 +1,4 @@
-# `scripts/` — MedVLM-Bench v1 pipeline
+# `scripts/` — MedVIGIL pipeline
 
 Each script is independently runnable from the project root with
 `python3 scripts/<name>.py [--help]`. The pipeline in `bench_freeze.py`
@@ -8,7 +8,7 @@ runs them in the canonical order.
 
 | # | Script | Role | Inputs | Outputs |
 |---|--------|------|--------|---------|
-| 1 | `bench_init_manifest.py`         | Layer A: copy human annotations + images into `data/medvlm_bench_v1/` | `data/annotations/master_300.csv` | `manifest.csv`, `probes.csv` (initial), `images/` |
+| 1 | `bench_init_manifest.py`         | Layer A: copy human annotations + images into `data/medvigil_v1/` | `data/annotations/master_300.csv` | `manifest.csv`, `probes.csv` (initial), `images/` |
 | 2 | `bench_generate_layers_bcd.py`   | <MODEL> mega-prompt: Layer B grounding + Layer C1 new text probes + Layer D V-CF anchor | `manifest.csv` + images | `raw_clinician/<case>.json` |
 | 3 | `bench_make_image_perturbations.py` | Layer C2 programmatic image perturbations (ROI-masked / ROI-only / LR-flip) | `raw_clinician/*.json` (for bbox) + images | `images_perturbed/`, `_image_probes.csv` |
 | 4 | `bench_consolidate_probes.py`    | Merge initial + Layer C1 + Layer C2 → unified probe table | `_image_probes.csv` + `raw_clinician/*` | `probes_open.csv`, `grounding.csv`, `_vcf_anchors.csv` |
@@ -57,6 +57,6 @@ corresponding file under `raw_clinician/` or `mcq_provenance/`.
 
 ## `legacy/`
 
-Pre-MedVLM-Bench scripts (Phase-1 annotation pack builder, audit, etc.)
+Pre-MedVIGIL scripts (Phase-1 annotation pack builder, audit, etc.)
 are archived under `scripts/legacy/`. They are kept for reproducibility
 of the upstream data preparation but are not part of the v1 pipeline.

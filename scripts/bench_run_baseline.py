@@ -1,4 +1,4 @@
-"""Single-model baseline runner for MedVLM-Bench v1.
+"""Single-model baseline runner for MedVIGIL.
 
 Runs one OpenAI model on the entire probes_mcq.csv (or probes_open.csv)
 and writes per-probe responses to results/baselines/<model>__<format>.jsonl.
@@ -31,7 +31,7 @@ from api_models import _load_dotenv  # noqa: E402
 
 _load_dotenv()
 
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 PROBES_MCQ = BENCH / "probes_mcq.csv"
 PROBES_OPEN = BENCH / "probes_open.csv"
 RESULTS = ROOT / "results/baselines"

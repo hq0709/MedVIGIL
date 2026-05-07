@@ -2,7 +2,7 @@
 visual-information-decay ablation.
 
 For each sigma level and each of the 300 original probes, this script:
-  1. opens data/medvlm_bench_v1/images/<image_file>
+  1. opens data/medvigil_v1/images/<image_file>
   2. applies a Gaussian blur with the given sigma (in pixels) to the full image
   3. writes the blurred copy to images_blur/sigma<sigma>/<image_file> (same format)
   4. emits a sigma-specific probe CSV at _blur_sweep/probes_sigma<sigma>.csv
@@ -27,7 +27,7 @@ from pathlib import Path
 from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 IMAGES = BENCH / "images"
 PROBES_MCQ = BENCH / "probes_mcq.csv"
 BLUR_ROOT = BENCH / "images_blur"

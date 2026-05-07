@@ -30,7 +30,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "HuatuoGPT-Vision"))
 
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 SWEEP_ROOT = BENCH / "_blur_sweep"
 RESULTS = ROOT / "results/blur_sweep"
 MODEL_NAME = "huatuogpt-vision-7b"

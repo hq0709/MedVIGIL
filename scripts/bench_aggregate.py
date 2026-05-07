@@ -23,7 +23,7 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 RESULTS = ROOT / "results"
 BASELINES = RESULTS / "baselines"
 
@@ -388,7 +388,7 @@ def main():
 
     # ---- Markdown report ----
     md = []
-    md.append("# MedVLM-Bench v1 — Baseline Results Summary")
+    md.append("# MedVIGIL — Baseline Results Summary")
     md.append("")
     md.append(f"Aggregated from `results/baselines/*.jsonl`. "
               f"Models: {len(summary_rows)} (with at least one ok response).")

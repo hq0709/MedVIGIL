@@ -38,7 +38,7 @@ from bench_run_baseline import (  # noqa: E402
 
 _load_dotenv()
 
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 SWEEP_ROOT = BENCH / "_blur_sweep"
 RESULTS = ROOT / "results/blur_sweep"
 

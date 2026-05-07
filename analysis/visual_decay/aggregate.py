@@ -21,7 +21,7 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-BENCH = ROOT / "data/medvlm_bench_v1"
+BENCH = ROOT / "data/medvigil_v1"
 RESULTS = ROOT / "results/blur_sweep"
 OUT_CSV = RESULTS / "aggregate.csv"
 
